@@ -99,3 +99,5 @@ config.json
 *~
 env-vars*
 .venv
+.tool-versions
+

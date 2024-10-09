@@ -988,7 +988,16 @@ def sync_contact_lists(STATE, ctx):
 
     return STATE
 
-def sync_form_submissions_by_form_id(STATE, form_guid):
+def sync_form_submissions(STATE, ctx):
+    data = request(get_url("forms")).json()
+
+    for row in data:
+        STATE = _sync_form_submissions_by_form_id(STATE, row['guid'])
+    singer.write_state(STATE)
+
+    return STATE
+
+def _sync_form_submissions_by_form_id(STATE, form_guid):
     schema = load_schema("form_submissions")
     bookmark_key = 'last_max_submitted_at'
     form_state_key = f"form_submissions_{form_guid}"
@@ -1069,7 +1078,6 @@ def sync_forms(STATE, ctx):
         # store the current sync start in the state and not move the bookmark past this value.
         sync_start_time = utils.now()
         for row in data:
-            STATE = sync_form_submissions_by_form_id(STATE, row['guid'])
             record = bumble_bee.transform(lift_properties_and_versions(row), schema, mdata)
 
             if record[bookmark_key] >= start:
@@ -1293,6 +1301,7 @@ STREAMS = [
     Stream('tickets', sync_tickets, ['id'], 'updatedAt', 'INCREMENTAL'),
     Stream('owners', sync_owners, ["id"], 'updatedAt', 'INCREMENTAL'),
     Stream('forms', sync_forms, ['guid'], 'updatedAt', 'INCREMENTAL'),
+    Stream('form_submissions', sync_form_submissions, ['guid', 'submittedAt', 'pageUrl'], 'submittedAt', 'INCREMENTAL'),
     Stream('workflows', sync_workflows, ['id'], 'updatedAt', 'INCREMENTAL'),
     Stream('contact_lists', sync_contact_lists, ["listId"], 'updatedAt', 'INCREMENTAL'),
     Stream('engagements', sync_engagements, ["engagement_id"], 'lastUpdated', 'INCREMENTAL'),
